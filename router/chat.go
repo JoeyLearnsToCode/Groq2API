@@ -84,10 +84,8 @@ func chat(c *gin.Context) {
 		}
 	}
 
-	// 如果model是 gpt-3.5-turbo，内部转换成 gemma-7b-it
-	if api_req.Model == "gpt-3.5-turbo" {
-		api_req.Model = "gemma-7b-it"
-	}
+	// 把外观模型还原为实际模型
+	api_req.Model = restoreFacadeModels(api_req.Model)
 
 	// 默认插入中文prompt
 	if global.ChinaPrompt == "true" {
@@ -175,24 +173,39 @@ func models(c *gin.Context) {
 		return
 	}
 
-	// 把 gpt-3.5-turbo 添加到 models 中，在 chat 方法中把 gpt-3.5-turbo 替换为 gemma-7b-it
-	mo.Data = append(mo.Data, struct {
-		Id            string `json:"id"`
-		Object        string `json:"object"`
-		Created       int    `json:"created"`
-		OwnedBy       string `json:"owned_by"`
-		Active        bool   `json:"active"`
-		ContextWindow int    `json:"context_window"`
-	}{
-		Id: "gpt-3.5-turbo", 
-		Object: "model", 
-		Created: 1626777600, 
-		OwnedBy: "openai", 
-		Active: true, 
-		ContextWindow: 8192,
-	})
+	// 给每种 groq 自带的模型都添加一个 gpt-4-facade- 前缀的外观模型
+	appendFacadeModels(&mo)
 
 	c.JSON(http.StatusOK, mo)
+}
+
+const facadeModelIdPrefix = "gpt-4-facade-"
+
+func appendFacadeModels(models *groq.Models) {
+	n := len(models.Data)
+	for i := 0; i < n; i++ {
+		models.Data = append(models.Data, struct {
+			Id            string `json:"id"`
+			Object        string `json:"object"`
+			Created       int    `json:"created"`
+			OwnedBy       string `json:"owned_by"`
+			Active        bool   `json:"active"`
+			ContextWindow int    `json:"context_window"`
+		}{
+			Id:            facadeModelIdPrefix + models.Data[i].Id,
+			Object:        models.Data[i].Object,
+			Created:       models.Data[i].Created,
+			OwnedBy:       models.Data[i].OwnedBy,
+			Active:        models.Data[i].Active,
+			ContextWindow: models.Data[i].ContextWindow,
+		})
+	}
+}
+func restoreFacadeModels(modelId string) string {
+	if strings.HasPrefix(modelId, facadeModelIdPrefix) {
+		modelId = strings.Replace(modelId, facadeModelIdPrefix, "", 1)
+	}
+	return modelId
 }
 
 func InitRouter(Router *gin.RouterGroup) {
