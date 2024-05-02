@@ -200,10 +200,28 @@ func appendFacadeModels(models *groq.Models) {
 			ContextWindow: models.Data[i].ContextWindow,
 		})
 	}
+	models.Data = append(models.Data, struct {
+		Id            string `json:"id"`
+		Object        string `json:"object"`
+		Created       int    `json:"created"`
+		OwnedBy       string `json:"owned_by"`
+		Active        bool   `json:"active"`
+		ContextWindow int    `json:"context_window"`
+	}{
+		Id:            "gpt-3.5-turbo",
+		Object:        "model",
+		Created:       1693721698,
+		OwnedBy:       "openai",
+		Active:        true,
+		ContextWindow: 8192,
+	})
 }
 func restoreFacadeModels(modelId string) string {
 	if strings.HasPrefix(modelId, facadeModelIdPrefix) {
 		modelId = strings.Replace(modelId, facadeModelIdPrefix, "", 1)
+	}
+	if modelId == "gpt-3.5-turbo" {
+		modelId = "llama3-8b-8192"
 	}
 	return modelId
 }
