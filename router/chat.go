@@ -2,13 +2,14 @@ package router
 
 import (
 	"encoding/json"
-	tls_client "github.com/bogdanfinn/tls-client"
 	"groqai2api/global"
 	groqHttp "groqai2api/pkg/groq"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	tls_client "github.com/bogdanfinn/tls-client"
 
 	"github.com/gin-gonic/gin"
 	groq "github.com/learnLi/groq_client"
@@ -81,6 +82,11 @@ func chat(c *gin.Context) {
 				}
 			}
 		}
+	}
+
+	// 如果model是 gpt-3.5-turbo，内部转换成 gemma-7b-it
+	if api_req.Model == "gpt-3.5-turbo" {
+		api_req.Model = "gemma-7b-it"
 	}
 
 	// 默认插入中文prompt
@@ -168,6 +174,24 @@ func models(c *gin.Context) {
 		c.Abort()
 		return
 	}
+
+	// 把 gpt-3.5-turbo 添加到 models 中，在 chat 方法中把 gpt-3.5-turbo 替换为 gemma-7b-it
+	mo.Data = append(mo.Data, struct {
+		Id            string `json:"id"`
+		Object        string `json:"object"`
+		Created       int    `json:"created"`
+		OwnedBy       string `json:"owned_by"`
+		Active        bool   `json:"active"`
+		ContextWindow int    `json:"context_window"`
+	}{
+		Id: "gpt-3.5-turbo", 
+		Object: "model", 
+		Created: 1626777600, 
+		OwnedBy: "openai", 
+		Active: true, 
+		ContextWindow: 8192,
+	})
+
 	c.JSON(http.StatusOK, mo)
 }
 
